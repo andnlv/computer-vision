@@ -83,13 +83,13 @@ if __name__ == '__main__':
                 run_single_test(input_dir, output_dir)
                 end = time()
                 running_time = end - start
-            except:
+            except Exception:
                 result = 'Runtime error'
                 traceback = format_exc()
             else:
                 try:
                     result = check_test(output_dir, gt_dir)
-                except:
+                except Exception:
                     result = 'Checker error'
                     traceback = format_exc()
 
