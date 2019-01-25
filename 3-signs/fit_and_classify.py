@@ -9,16 +9,19 @@ from sklearn.svm import LinearSVC
 from itertools import product
 
 
-def get_grads(img):
+def get_grads(img, rotate=0):
     weights = np.array([0.299, 0.587, 0.114])
     brightness = img @ weights
     grad_y = sobel_h(brightness)
     grad_x = sobel_v(brightness)
-    return np.sqrt(grad_y ** 2 + grad_x ** 2), np.arctan2(grad_y, grad_x)
+    grad_norms = np.sqrt(grad_y ** 2 + grad_x ** 2)
+    grad_angles = np.arctan2(grad_y, grad_x) + rotate
+    grad_angles -= (grad_angles > np.pi) * (2 * np.pi)
+    return grad_norms, grad_angles
 
 
 def make_hist(grad_norms, grad_angles, bins):
-    limits = np.linspace(-np.pi, np.pi, bins + 1).reshape(bins + 1, 1, 1) + np.pi / bins
+    limits = np.linspace(-np.pi, np.pi, bins + 1).reshape(bins + 1, 1, 1)
     return np.sum(((grad_angles >= limits[:-1]) & (grad_angles < limits[1:])) * grad_norms, axis=(1, 2))
 
 
@@ -34,7 +37,7 @@ def build_cells(grad_norms, grad_angles, cell_shape=(8, 8), bins=8):
     return hists
 
 
-def build_blocks(cells, block_shape=(4, 4), step=(2, 2)):
+def build_blocks(cells, block_shape=(4, 4), step=None):
     if step is None:
         step = block_shape
     result_shape = (np.array(cells.shape[:2]) - block_shape) // step + 1
@@ -50,12 +53,12 @@ def build_blocks(cells, block_shape=(4, 4), step=(2, 2)):
 
 def extract_hog(image):
     image = resize(image, (64, 64))
-    grad_norms, grad_angles = get_grads(image)
-    cells = build_cells(grad_norms, grad_angles)
-    return build_blocks(cells)
+    grad_norms, grad_angles = get_grads(image, rotate=np.pi / 8)
+    cells = build_cells(grad_norms, grad_angles, cell_shape=(8, 8))
+    return build_blocks(cells, block_shape=(2, 2), step=(1, 1))
 
 
 def fit_and_classify(X_train, y_train, X_test):
-    model = LinearSVC()
+    model = LinearSVC(C=0.09)
     model.fit(X_train, y_train)
     return model.predict(X_test)
